@@ -1,0 +1,22 @@
+export interface CrearAdmision {
+  nombre: string,
+  apellidoPaterno: string,
+  apellidoMaterno: string,
+  fechaNacimiento: string,
+  generoId: number,
+  correo: string,
+  telefono: string,
+  curp: string,
+  calle: string,
+  numeroExterior: string,
+  numeroInterior: string,
+  codigoPostalId: number,
+  idEstadoCivil: number,
+  campusId: number,
+  planEstudiosId: number,
+  aspiranteStatusId: number,
+  medioContactoId: number,
+  notas: string,
+  atendidoPorUsuarioId: string,
+  horarioId: number
+}
