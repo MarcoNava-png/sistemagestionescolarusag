@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type SubmitHandler, type Resolver } from 'react-hook-form';
 import * as z from 'zod';
@@ -16,9 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 
-import {
-  GENDERS,
-} from '@/features/admisiones/mock/catalogs';
+import { GENDERS } from '@/features/admisiones/mock/catalogs';
 import { CrearAdmision } from '../../types/CrearAdmision';
 import { PeriodoAcademicoItem } from '@/features/periodoacademico/Types/PeriodoAcademicoItems';
 import { CampusItem } from '@/features/campus/types/CampusItem';
@@ -34,18 +32,32 @@ import { apiFetch } from '@/lib/fetcher';
 import { useAdmisiones } from '../../hooks';
 import { EstadoCivil } from '../../types/Admisiones';
 
+/* Combobox (shadcn) */
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
+import { ChevronsUpDown, Check } from 'lucide-react';
+
+/** Si no tienes util cn, definimos uno simple local */
+const cn = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
+
 const FormSchema = z.object({
   // Datos personales requeridos por CrearAdmision
-  nombre: z.string().min(1, 'Requerido'),
-  apellidoPaterno: z.string().min(1, 'Requerido'),
-  apellidoMaterno: z.string().min(1, 'Requerido'),
+  nombre: z.string().min(1, 'Requerido').regex(/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/, 'Nombre inválido'),
+  apellidoPaterno: z.string().min(1, 'Requerido').regex(/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/, 'Apellido inválido'),
+  apellidoMaterno: z.string().min(1, 'Requerido').regex(/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/, 'Apellido inválido'),
   fechaNacimiento: z.string().min(1, 'Requerido'), // ISO string
   generoId: z.coerce.number().int().min(1, 'Selecciona género'),
-  curp: z.string().min(1, 'Requerido'),
+  curp: z.string()
+    .min(18, 'CURP debe tener 18 caracteres')
+    .regex(/^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$/, 'CURP inválido'),
 
   // Contacto
   correo: z.string().email('Correo inválido'),
-  telefono: z.string().min(7, 'Teléfono inválido'),
+  telefono: z.string()
+    .min(10, 'Teléfono debe tener al menos 10 dígitos')
+    .regex(/^\d{10,15}$/, 'Teléfono inválido, solo dígitos'),
 
   // Dirección
   calle: z.string().min(1, 'Requerido'),
@@ -53,7 +65,7 @@ const FormSchema = z.object({
   numeroInterior: z.string().optional().default(''),
   codigoPostalId: z.coerce.number().int().min(1, 'Selecciona CP'),
 
-  // Estado civil (sin catálogo en props)
+  // Estado civil
   idEstadoCivil: z.coerce.number().int().min(1, 'Selecciona estado civil'),
 
   // Académico y campus
@@ -67,7 +79,7 @@ const FormSchema = z.object({
   notas: z.string().optional().default(''),
   atendidoPorUsuarioId: z.string().optional().default(''),
 
-  // Campos locales para dependencias de ubicación (no forman parte de CrearAdmision)
+  // Campos locales para dependencias de ubicación
   municipioId: z.coerce.number().int().optional().default(0),
   estadoId: z.coerce.number().int().optional().default(0),
 });
@@ -93,6 +105,85 @@ export interface AdmissionFormModalProps {
 
 const ph = (label: string) => `Selecciona ${label}`;
 
+/* =========================
+   Combobox de Asentamientos
+   ========================= */
+function AsentamientoCombobox({
+  value,
+  onChange,
+  items,
+  disabled,
+  placeholder = 'un asentamiento',
+}: {
+  value?: number | null;
+  onChange: (v: number | null) => void;
+  items: AsentamientoItem[];
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const options = useMemo(
+    () =>
+      (items || []).map((a) => ({
+        id: a.id,
+        label: a.asentamiento,
+        search: `${a.id} ${a.asentamiento}`, // lo usa CommandInput para filtrar
+      })),
+    [items]
+  );
+
+  const selected = useMemo(
+    () => options.find((o) => o.id === value) ?? null,
+    [options, value]
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-10 rounded-lg text-sm"
+          disabled={disabled}
+        >
+          {selected ? selected.label : `Selecciona ${placeholder}`}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar por nombre o id..." />
+          <CommandList>
+            <CommandEmpty>Sin resultados.</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={`asent-${opt.id}`}
+                  value={opt.search}
+                  onSelect={() => {
+                    onChange(opt.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn('mr-2 h-4 w-4', opt.id === value ? 'opacity-100' : 'opacity-0')} />
+                  {opt.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* =======================================
+   Componente principal
+   ======================================= */
 export function AdmissionFormModal({
   isOpen,
   EstadosItem,
@@ -109,7 +200,6 @@ export function AdmissionFormModal({
   admission,
   isSubmitting = false,
 }: AdmissionFormModalProps) {
-
   const MySwal = withReactContent(Swal);
   const isEdit = Boolean(admission);
 
@@ -147,25 +237,23 @@ export function AdmissionFormModal({
   const estadoSelected = form.watch('estadoId');
   const municipioSelected = form.watch('municipioId');
 
-  const {
-    createAdmissionData,
-  } = useAdmisiones();
+  const { createAdmissionData } = useAdmisiones();
 
   const fetchMunicipios = useCallback(async (idEstado: string) => {
     try {
       const data: MunicipioItem[] = await apiFetch<MunicipioItem[]>(`/Ubicacion/municipios/${idEstado}`);
-      setMunicipiosItems(data)
+      setMunicipiosItems(data);
     } finally {
-
+      // noop
     }
   }, []);
 
   const fetchAsentamientos = useCallback(async (idMunicipio: string) => {
     try {
       const data: AsentamientoItem[] = await apiFetch<AsentamientoItem[]>(`/Ubicacion/asentamientos/${idMunicipio}`);
-      setAsentamientosItems(data)
+      setAsentamientosItems(data);
     } finally {
-
+      // noop
     }
   }, []);
 
@@ -173,6 +261,8 @@ export function AdmissionFormModal({
     if (!estadoSelected || Number(estadoSelected) <= 0) {
       setMunicipiosItems([]);
       form.setValue('municipioId', 0);
+      setAsentamientosItems([]);
+      form.setValue('codigoPostalId', 0);
       return;
     }
     fetchMunicipios(String(estadoSelected));
@@ -181,10 +271,11 @@ export function AdmissionFormModal({
   useEffect(() => {
     if (!municipioSelected || Number(municipioSelected) <= 0) {
       setAsentamientosItems([]);
+      form.setValue('codigoPostalId', 0);
       return;
     }
     fetchAsentamientos(String(municipioSelected));
-  }, [municipioSelected, fetchAsentamientos]);
+  }, [municipioSelected, fetchAsentamientos, form]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -213,9 +304,7 @@ export function AdmissionFormModal({
       municipioId: (admission as any)?.municipioId ?? 0,
       estadoId: (admission as any)?.estadoId ?? 0,
     });
-
-    // Las listas dependientes se cargan mediante los watchers de estadoId/municipioId
-
+    // Las listas dependientes se cargan con los watchers
   }, [admission, form, isOpen]);
 
   const handleSubmit: SubmitHandler<FormValues> = async (data) => {
@@ -244,9 +333,7 @@ export function AdmissionFormModal({
 
     try {
       await createAdmissionData(payload);
-      
       onClose();
-
       form.reset();
 
       MySwal.fire({
@@ -259,9 +346,8 @@ export function AdmissionFormModal({
         allowEscapeKey: true,
         focusConfirm: true,
       });
-
     } catch (e: any) {
-      onClose(); 
+      onClose();
       MySwal.fire({
         title: 'Error',
         text: e?.message ?? 'No se pudo guardar la admisión',
@@ -272,11 +358,11 @@ export function AdmissionFormModal({
         focusConfirm: true,
       });
     }
-  };
+  }; // ← cierra SOLO handleSubmit
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[99vw] h-[99vh] max-w-none max-h-none p-0 bg-white rounded-xl shadow-xl overflow-visible flex flex-col">
+      <DialogContent className="w-full max-w-2xl sm:max-w-3xl md:max-w-4xl lg:max-w-5xl rounded-3xl shadow-xl bg-white/95 backdrop-blur-lg border border-gray-200 p-0 overflow-visible flex flex-col">
         {/* Header */}
         <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
           <DialogTitle className="text-lg sm:text-xl font-semibold text-gray-900">
@@ -292,7 +378,7 @@ export function AdmissionFormModal({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="h-full">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 sm:gap-x-6 lg:gap-x-8 gap-y-5 sm:gap-y-6 h-full">
-                
+
                 {/* Nombre y apellidos */}
                 <FormField control={form.control} name="nombre" render={({ field }) => (
                   <FormItem className="space-y-2">
@@ -332,7 +418,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un género')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(GENDERS || []).map((g) => (
                           <SelectItem key={g.id} value={String(g.id)}>{g.nombre}</SelectItem>
                         ))}
@@ -399,7 +485,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un plan de estudios')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(PlanEstudiosItem || []).map((p) => (
                           <SelectItem key={p.idPlanEstudios} value={String(p.idPlanEstudios)}>{p.nombrePlanEstudios}</SelectItem>
                         ))}
@@ -423,24 +509,7 @@ export function AdmissionFormModal({
                   </FormItem>
                 )} />
 
-                {/* Ubicación */}
-                {/* <FormField control={form.control} name="codigoPostalId" render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-sm font-medium text-gray-700">Código Postal *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        placeholder="Código Postal"
-                        className="h-10 rounded-lg text-sm"
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-xs" />
-                  </FormItem>
-                )} /> */}
-
-                {/* Dirección: Calle y números */}
+                {/* Dirección */}
                 <FormField control={form.control} name="calle" render={({ field }) => (
                   <FormItem className="space-y-2">
                     <FormLabel className="text-sm font-medium text-gray-700">Calle *</FormLabel>
@@ -469,6 +538,7 @@ export function AdmissionFormModal({
                   </FormItem>
                 )} />
 
+                {/* Estado */}
                 <FormField control={form.control} name="estadoId" render={({ field }) => (
                   <FormItem className="space-y-2">
                     <FormLabel className="text-sm font-medium text-gray-700">Estado *</FormLabel>
@@ -481,7 +551,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un estado')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(EstadosItem || []).map((e) => (
                           <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>
                         ))}
@@ -491,6 +561,7 @@ export function AdmissionFormModal({
                   </FormItem>
                 )} />
 
+                {/* Municipio */}
                 <FormField control={form.control} name="municipioId" render={({ field }) => (
                   <FormItem className="space-y-2">
                     <FormLabel className="text-sm font-medium text-gray-700">Municipio *</FormLabel>
@@ -504,7 +575,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un municipio')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(MunicipiosItems || []).map((m: MunicipioItem) => (
                           <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
                         ))}
@@ -514,26 +585,19 @@ export function AdmissionFormModal({
                   </FormItem>
                 )} />
 
-                {/* Asentamiento */}
+                {/* Asentamiento (Combobox buscable) */}
                 <FormField control={form.control} name="codigoPostalId" render={({ field }) => (
                   <FormItem className="space-y-2">
                     <FormLabel className="text-sm font-medium text-gray-700">Asentamiento *</FormLabel>
-                    <Select
-                      value={field.value ? String(field.value) : ''}
-                      onValueChange={(v) => field.onChange(Number(v))}
-                      disabled={!form.watch('estadoId')}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="h-10 rounded-lg text-sm">
-                          <SelectValue placeholder={ph('un municipio')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent position="popper">
-                        {(_AsentamientosItems || []).map((m: AsentamientoItem) => (
-                          <SelectItem key={m.id} value={String(m.codigo)}>{m.asentamiento}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <AsentamientoCombobox
+                        value={field.value ?? null}
+                        onChange={(v) => field.onChange(v ?? undefined)}
+                        items={_AsentamientosItems || []}
+                        disabled={!form.watch('municipioId')}
+                        placeholder="un asentamiento"
+                      />
+                    </FormControl>
                     <FormMessage className="text-xs" />
                   </FormItem>
                 )} />
@@ -548,7 +612,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('estatus del aspirante')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(EstatusAspiranteItem || []).map((e) => (
                           <SelectItem key={e.idAspiranteEstatus} value={String(e.idAspiranteEstatus)}>{e.descEstatus}</SelectItem>
                         ))}
@@ -568,7 +632,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un medio de contacto')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(MedioContactoItem || []).map((m) => (
                           <SelectItem key={m.idMedioContacto} value={String(m.idMedioContacto)}>{m.descMedio}</SelectItem>
                         ))}
@@ -588,7 +652,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un campus')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(CampusItem || []).map((c) => (
                           <SelectItem key={c.idCampus} value={String(c.idCampus)}>{c.nombre}</SelectItem>
                         ))}
@@ -608,7 +672,7 @@ export function AdmissionFormModal({
                           <SelectValue placeholder={ph('un horario')} />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="bg-white text-gray-900">
                         {(HorariosItem || []).map((h) => (
                           <SelectItem key={h.idTurno} value={String(h.idTurno)}>{h.nombre}</SelectItem>
                         ))}
@@ -618,7 +682,7 @@ export function AdmissionFormModal({
                   </FormItem>
                 )} />
 
-                {/* Estado civil (numérico temporal) */}
+                {/* Estado civil */}
                 <FormField control={form.control} name="idEstadoCivil" render={({ field }) => (
                   <FormItem className="space-y-2">
                     <FormLabel className="text-sm font-medium text-gray-700">Estado Civil *</FormLabel>
@@ -629,7 +693,7 @@ export function AdmissionFormModal({
                             <SelectValue placeholder={ph('un estado civil')} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent position="popper">
+                        <SelectContent position="popper" className="bg-white text-gray-900">
                           {(EstadosCivilItems || []).map((ec) => (
                             <SelectItem key={ec.idEstadoCivil} value={String(ec.idEstadoCivil)}>{ec.descEstadoCivil}</SelectItem>
                           ))}

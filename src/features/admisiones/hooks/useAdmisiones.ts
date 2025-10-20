@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { getAdmissions, createAdmission, getAdmissionByIdData } from "@/features/admisiones/services/admisionesService";
 import { AdmisionItem } from "../types/AdmisionesData";
 import { CrearAdmision } from "../types/CrearAdmision";
-import { createAdmission, getAdmissions } from "../services/admisionesService";
 
 export function useAdmisiones() {
   const [admissions, setAdmissions] = useState<AdmisionItem[]>([]);
@@ -45,6 +45,11 @@ export function useAdmisiones() {
     return admissions.find(a => a.idAspirante === id);
   }, [admissions]);
 
+  const getAdmissionById = useCallback(async (id: number) => {
+    const data = await getAdmissionByIdData(id);
+    return data;
+  }, [admissions, getAdmissionByIdData]);
+
   const createAdmissionData = async (payload: CrearAdmision) => {
     try {
       setLoading(true);
@@ -66,5 +71,5 @@ export function useAdmisiones() {
     }
   };
 
-  return { admissions, loading, error, fetchAdmissions, createAdmissionData, totalItems, pageNumber, pageSize, totalPages };
+  return { admissions, loading, error, fetchAdmissions, getAdmissionById, createAdmissionData, totalItems, pageNumber, pageSize, totalPages };
 }

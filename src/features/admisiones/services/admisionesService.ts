@@ -3,13 +3,13 @@ import {
   removeAdmissionFromCache,
   updateAdmissionInCache,
 } from "./admissionsLocal";
+import type { LocalAdmission } from "@/features/admisiones/mock/db";
 import { apiFetch } from "@/lib/fetcher";
-import { AdmisionesData } from "../types/AdmisionesData";
+import { AdmisionesData, AdmisionItem } from "../types/AdmisionesData";
+import { CrearAdmision } from "../types/CrearAdmision";
 import { BitacoraSeguimiento } from "../types/BitacoraSeguimiento";
 import { CreateBitacora } from "../types/CreateBitacora";
 import { EstadoCivil, PersonaEstadoCivil } from "../types/Admisiones";
-import { LocalAdmission } from "../muck/db";
-import { CrearAdmision } from "./../types/CrearAdmision";
 
 export async function getAdmissions(page: number = 1, pageSize: number = 20, filter?: string): Promise<AdmisionesData> {
   let url = `/Aspirante?page=${page}&pageSize=${pageSize}`;
@@ -17,6 +17,11 @@ export async function getAdmissions(page: number = 1, pageSize: number = 20, fil
     url += `&filter=${encodeURIComponent(filter.trim())}`;
   }
   return await apiFetch<AdmisionesData>(url);
+}
+
+export async function getAdmissionByIdData(id: number): Promise<AdmisionItem | null> {
+  const url = `/Aspirante/${id}`;
+  return await apiFetch<AdmisionItem>(url);
 }
 
 export async function createAdmission(

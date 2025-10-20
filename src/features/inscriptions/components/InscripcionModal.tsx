@@ -86,18 +86,18 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl rounded-3xl shadow-xl bg-white/95 backdrop-blur-lg border border-gray-200 p-0 overflow-visible flex flex-col">
         <DialogHeader>
           <DialogTitle>Inscribir estudiante</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap gap-4 p-4 items-center justify-between">
             <FormField
               control={form.control}
               name="idEstudiante"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex-1 min-w-[220px]">
                   <FormLabel className="text-sm font-medium text-gray-700">Estudiante</FormLabel>
                   <Select
                     value={field.value ? String(field.value) : ''}
@@ -108,7 +108,7 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
                         <SelectValue placeholder="Selecciona un estudiante" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="bg-white text-gray-900">
                       {(students || []).map((s) => (
                         <SelectItem key={s.idEstudiante} value={String(s.idEstudiante)}>
                           {s.nombreCompleto}
@@ -125,7 +125,7 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
               control={form.control}
               name="idGrupoMateria"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex-1 min-w-[220px]">
                   <FormLabel className="text-sm font-medium text-gray-700">ID Grupo Materia</FormLabel>
                   <FormControl>
                     <Select
@@ -137,7 +137,7 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
                           <SelectValue placeholder="Selecciona un grupo" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-white text-gray-900">
                         {(grupos || []).map((g) => (
                           <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>
                             {g.numeroGrupo}
@@ -155,7 +155,7 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
               control={form.control}
               name="fechaInscripcion"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex-1 min-w-[220px]">
                   <FormLabel className="text-sm font-medium text-gray-700">Fecha Inscripción</FormLabel>
                   <FormControl>
                     <Input type="datetime-local" value={field.value} onChange={field.onChange} className="mt-1" />
@@ -169,7 +169,7 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
               control={form.control}
               name="estado"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex-1 min-w-[220px]">
                   <FormLabel className="text-sm font-medium text-gray-700">Estado</FormLabel>
                   <FormControl>
                     <Input {...field} className="mt-1" />
@@ -179,12 +179,12 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
               )}
             />
 
-            <DialogFooter>
-              <div className="flex gap-2 justify-end w-full">
+            <div className="w-full flex justify-end gap-2 mt-4">
+              <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-                <Button type="submit">Guardar</Button>
-              </div>
-            </DialogFooter>
+                <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">Guardar</Button>
+              </DialogFooter>
+            </div>
           </form>
         </Form>
       </DialogContent>

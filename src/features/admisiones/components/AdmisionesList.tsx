@@ -52,7 +52,7 @@ export function AdmissionsList({ onRowDoubleClick }: AdmissionsListProps) {
   const [EstadosCivilItems, setEstadosCivilItems] = useState<EstadoCivil[]>([]);
   const [isBitacoraOpen, setIsBitacoraOpen] = useState(false);
   const [selectedAspiranteId, setSelectedAspiranteId] = useState<number | null>(null);
-  
+
   const [PlanEstudiosItems, setPlanEstudiosItems] = useState<PlanEstudiosItem[]>([]);
   const [PeriodoAcademicoItems, setPeriodoAcademicoItems] = useState<PeriodoAcademicoItem[]>([]);
   const [CampusItems, setCampusItems] = useState<CampusItem[]>([]);
@@ -245,6 +245,8 @@ export function AdmissionsList({ onRowDoubleClick }: AdmissionsListProps) {
     try {
       await createAdmissionData(data);
       setIsFormModalOpen(false);
+      // Refrescar la lista después de crear
+      fetchAdmissions(page, pageSize, debouncedSearch);
     } catch (error) {
       console.error('Error saving admission:', error);
     }
@@ -260,117 +262,115 @@ export function AdmissionsList({ onRowDoubleClick }: AdmissionsListProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Lista de Aspirantes <span className="text-sm text-gray-500 font-normal">({totalItems ?? 0})</span></h2>
+    <div className="px-4 py-6">
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Aspirantes</h1>
+          <p className="text-sm text-gray-500">Listado de aspirantes y su información básica.</p>
+        </div>
         <Button
           type="button"
           onClick={() => setIsFormModalOpen(true)}
-          className="bg-black text-white hover:bg-[#233f6a]"
+          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700"
           disabled={loading}
         >
           <Plus className="mr-2 h-4 w-4" />
-          Nuevo Aspirante
+          Nuevo aspirante
         </Button>
       </div>
 
-      <div className="w-full md:w-1/3">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Buscar aspirantes</label>
-          <input
-            type="text"
-            placeholder="Buscar por nombre, estatus, programa..."
-            value={searchTerm}
-            onChange={handleSearch}
-            className="w-full rounded-md p-2 text-sm ring-1 ring-gray-300"
-          />
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-3 text-sm text-red-700 rounded">
-          {error}
-        </div>
-      )}
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Programa de interés</TableHead>
-              <TableHead>Estatus</TableHead>
-              <TableHead>Registro</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(pagedAdmissions ?? []).map((a) => (
-              <TableRow
-                key={a.idAspirante}
-                className="hover:bg-gray-50 cursor-default"
-                onDoubleClick={() => onRowDoubleClick?.(a)}
-              >
-                <TableCell className="font-medium">
-                  <div className="flex items-center">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-                      {getInitial(a)}
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {a.nombreCompleto || 'Sin nombre'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {'Sin teléfono'}
-                      </div>
-                    </div>
-                  </div>
-                </TableCell>
-
-                <TableCell className="text-sm text-gray-900">
-                  {a.email || 'Sin email'}
-                </TableCell>
-
-                <TableCell className="text-sm text-gray-700">
-                  {a.planEstudios ?? '—'}
-                </TableCell>
-
-                <TableCell>
-                  <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
-                    {a.aspiranteEstatus || '—'}
-                  </span>
-                </TableCell>
-
-                <TableCell className="text-sm text-gray-500">
-                  {formatDate(a.fechaRegistro)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link
-                    href={`/dashboard/list/admissions/detailsapplicants?selected=${a.idAspirante}`}
-                    className="inline-block rounded-lg border px-3 py-1 text-xs text-blue-600 hover:bg-blue-50"
-                  >
-                    Seguimiento
-                  </Link>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="ml-2 inline-block px-3 py-1 h-7 text-xs"
-                    onClick={() => openBitacoraFor(a.idAspirante)}
-                  >
-                    Bitácora
-                  </Button>
-                </TableCell>
+      <div className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-sm">
+        <div className="overflow-auto">
+          <Table className="min-w-[920px] w-full border-collapse text-sm">
+            <TableHeader>
+              <TableRow className="text-left text-gray-600 bg-gray-50/95 sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-gray-50/80">
+                <TableHead className="px-4 py-3 font-medium">Nombre:</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Teléfono:</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Programa de interés:</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Asignado a:</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Estatus:</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Registro:</TableHead>
+                <TableHead className="px-4 py-3 font-medium text-right">Acciones:</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody className="[&>tr:hover]:bg-gray-50">
+              {(pagedAdmissions ?? []).map((a, idx) => (
+                <TableRow
+                  key={a.idAspirante}
+                  className={`border-t border-gray-100 ${
+                    idx % 2 === 1 ? "bg-gray-50/40" : "bg-white"
+                  } transition-colors hover:bg-gray-50 cursor-default`}
+                  onDoubleClick={() => onRowDoubleClick?.(a)}
+                >
+                  <TableCell className="px-4 py-3 align-top font-medium">
+                    <div className="flex items-center">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+                        {getInitial(a)}
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {a.nombreCompleto || 'Sin nombre'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {a.email || 'Sin correo'}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="px-4 py-3 align-top text-sm text-gray-900">
+                    {a.telefono || 'Sin teléfono'}
+                  </TableCell>
+
+                  <TableCell className="px-4 py-3 align-top text-sm text-gray-700">
+                    {a.planEstudios ?? '—'}
+                  </TableCell>
+
+                  <TableCell className="px-4 py-3 align-top text-sm text-gray-700">
+                    {a.usuarioAtiendeNombre ?? '—'}
+                  </TableCell>
+
+                  <TableCell className="px-4 py-3 align-top">
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800 ring-1 ring-green-600/20">
+                      {a.aspiranteEstatus || '—'}
+                    </span>
+                  </TableCell>
+
+                  <TableCell className="px-4 py-3 align-top text-sm text-gray-500">
+                    {formatDate(a.fechaRegistro)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 align-top text-right">
+                    <Link
+                      href={`/dashboard/list/admissions/detailsapplicants?idAspirante=${a.idAspirante}`}
+                      className="inline-block rounded-lg border px-3 py-1 text-xs text-blue-600 hover:bg-blue-50"
+                    >
+                      Seguimiento
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="ml-2 inline-block px-3 py-1 h-7 text-xs"
+                      onClick={() => openBitacoraFor(a.idAspirante)}
+                    >
+                      Bitácora
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
         {loading && <div className="p-3 text-xs text-gray-500">Cargando...</div>}
 
         {!loading && (totalItems ?? 0) === 0 && (
           <div className="p-6 text-sm text-gray-500">No hay aspirantes todavía.</div>
         )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+          <span>Total: {totalItems ?? 0}</span>
+        </div>
       </div>
 
       {/* Pagination controls */}
@@ -383,7 +383,6 @@ export function AdmissionsList({ onRowDoubleClick }: AdmissionsListProps) {
               const newSize = Number(e.target.value);
               setPageSize(newSize);
               setPage(1);
-              // fetch first page with new page size immediately
               try {
                 fetchAdmissions(1, newSize, debouncedSearch);
               } catch (err) { }
@@ -407,7 +406,6 @@ export function AdmissionsList({ onRowDoubleClick }: AdmissionsListProps) {
               {Array.from({ length: totalPages }).map((_, i) => {
                 const p = i + 1;
                 if (totalPages > 7) {
-                  // show first, last, current +/-1 and ellipsis
                   if (p === 1 || p === totalPages || Math.abs(p - page) <= 1) {
                     return (
                       <PaginationItem key={p}>
