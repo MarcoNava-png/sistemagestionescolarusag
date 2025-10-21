@@ -49,3 +49,11 @@ export interface StudentItem {
   telefono: string,
   planEstudios: string,
 }
+
+export interface EstudianteItem {
+  matricula: string
+  idPersona: number
+  fechaIngreso: string
+  idPlanActual: number
+  activo: boolean
+}

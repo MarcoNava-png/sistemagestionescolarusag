@@ -9,17 +9,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { StudentItem } from '../types';
+import { EstudianteItem, StudentItem } from '../types';
 import { GroupItem } from '@/features/groups';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { apiFetch } from '@/lib/fetcher';
+import { id } from 'date-fns/locale';
 
 
 const Schema = z.object({
-  idEstudiante: z.number().int().nonnegative(),
-  idGrupoMateria: z.number().int().nonnegative(),
-  fechaInscripcion: z.string().min(1),
+  matricula: z.string().min(1),
+  idPersona: z.number().int().nonnegative(),
+  fechaIngreso: z.string().min(1),
+  idPlanActual: z.number().int().nonnegative(),
   estado: z.string().min(1),
 });
 
@@ -36,12 +38,15 @@ function toDateTimeLocalString(input?: string | Date) {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
-export default function InscripcionModal({ open, students, grupos, onClose, initial }: { open: boolean; students: StudentItem[]; grupos: GroupItem[]; onClose: () => void; initial?: Partial<FormValues> }) {
+export default function InscripcionModal({ open, estudiantes, onClose, initial }: { open: boolean; estudiantes: EstudianteItem[];  onClose: () => void; initial?: Partial<FormValues> }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(Schema), defaultValues: {
-      idEstudiante: initial?.idEstudiante ?? 0,
-      idGrupoMateria: initial?.idGrupoMateria ?? 0,
-      fechaInscripcion: toDateTimeLocalString(initial?.fechaInscripcion),
+      //idEstudiante: initial?.idEstudiante ?? 0,
+      matricula: initial?.matricula ?? '',
+      //idGrupoMateria: initial?.idGrupoMateria ?? 0,
+      idPersona: initial?.idPersona ?? 0,
+      fechaIngreso: toDateTimeLocalString(initial?.fechaIngreso),
+      idPlanActual: initial?.idPlanActual ?? 0,
       estado: initial?.estado ?? 'Activo',
     }
   });
@@ -51,22 +56,23 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
   React.useEffect(() => {
     if (!open) return;
     form.reset({
-      idEstudiante: initial?.idEstudiante ?? 0,
-      idGrupoMateria: initial?.idGrupoMateria ?? 0,
-      fechaInscripcion: toDateTimeLocalString(initial?.fechaInscripcion),
+      matricula: initial?.matricula ?? '',
+      idPersona: initial?.idPersona ?? 0,
+      fechaIngreso: toDateTimeLocalString(initial?.fechaIngreso),
+      idPlanActual: initial?.idPlanActual ?? 0,
       estado: initial?.estado ?? 'Activo',
     });
   }, [open, initial, form]);
 
   const onSubmit = async (data: FormValues) => {
     try {
-      await apiFetch<any>('/inscripciones', {
+      await apiFetch<any>('/estudiantes', {
         method: 'POST',
         body: JSON.stringify(data),
       });
 
       onClose();
-      await MySwal.fire({ icon: 'success', title: 'Inscripción creada', text: 'La inscripción se registró correctamente.' });
+      await MySwal.fire({ icon: 'success', title: 'Estudiante creado', text: 'El estudiante se creo correctamente.' });
     } catch (e: any) {
       let message = e?.message || 'Ocurrió un error. Intenta nuevamente.';
       if (e?.body) {
@@ -95,56 +101,18 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap gap-4 p-4 items-center justify-between">
             <FormField
               control={form.control}
-              name="idEstudiante"
+              name="matricula"
               render={({ field }) => (
                 <FormItem className="flex-1 min-w-[220px]">
-                  <FormLabel className="text-sm font-medium text-gray-700">Estudiante</FormLabel>
-                  <Select
-                    value={field.value ? String(field.value) : ''}
-                    onValueChange={(v) => field.onChange(Number(v))}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-10 rounded-lg text-sm">
-                        <SelectValue placeholder="Selecciona un estudiante" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-white text-gray-900">
-                      {(students || []).map((s) => (
-                        <SelectItem key={s.idEstudiante} value={String(s.idEstudiante)}>
-                          {s.nombreCompleto}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="idGrupoMateria"
-              render={({ field }) => (
-                <FormItem className="flex-1 min-w-[220px]">
-                  <FormLabel className="text-sm font-medium text-gray-700">ID Grupo Materia</FormLabel>
+                  <FormLabel className="text-sm font-medium text-gray-700">Matricula</FormLabel>
                   <FormControl>
-                    <Select
-                      value={field.value ? String(field.value) : ''}
-                      onValueChange={(v) => field.onChange(Number(v))}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="h-10 rounded-lg text-sm">
-                          <SelectValue placeholder="Selecciona un grupo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-white text-gray-900">
-                        {(grupos || []).map((g) => (
-                          <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>
-                            {g.numeroGrupo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      type="text"
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Escribe la matrícula"
+                      className="mt-1"
+                    />
                   </FormControl>
                   <FormMessage className="text-xs" />
                 </FormItem>
@@ -153,12 +121,17 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
 
             <FormField
               control={form.control}
-              name="fechaInscripcion"
+              name="idPersona"
               render={({ field }) => (
                 <FormItem className="flex-1 min-w-[220px]">
-                  <FormLabel className="text-sm font-medium text-gray-700">Fecha Inscripción</FormLabel>
+                  <FormLabel className="text-sm font-medium text-gray-700">ID Persona</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" value={field.value} onChange={field.onChange} className="mt-1" />
+                    <Input
+                      type="number"
+                      value={field.value}
+                      readOnly
+                      className="mt-1 bg-gray-100"
+                    />
                   </FormControl>
                   <FormMessage className="text-xs" />
                 </FormItem>
@@ -167,12 +140,36 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
 
             <FormField
               control={form.control}
-              name="estado"
+              name="fechaIngreso"
               render={({ field }) => (
                 <FormItem className="flex-1 min-w-[220px]">
-                  <FormLabel className="text-sm font-medium text-gray-700">Estado</FormLabel>
+                  <FormLabel className="text-sm font-medium text-gray-700">Fecha Ingreso</FormLabel>
                   <FormControl>
-                    <Input {...field} className="mt-1" />
+                    <Input
+                      type="date"
+                      value={field.value?.slice(0, 10)}
+                      readOnly
+                      className="mt-1 bg-gray-100"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="idPlanActual"
+              render={({ field }) => (
+                <FormItem className="flex-1 min-w-[220px]">
+                  <FormLabel className="text-sm font-medium text-gray-700">Plan Actual</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      value={field.value}
+                      readOnly
+                      className="mt-1 bg-gray-100"
+                    />
                   </FormControl>
                   <FormMessage className="text-xs" />
                 </FormItem>
@@ -182,7 +179,7 @@ export default function InscripcionModal({ open, students, grupos, onClose, init
             <div className="w-full flex justify-end gap-2 mt-4">
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-                <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">Guardar</Button>
+                <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700" >Guardar</Button>
               </DialogFooter>
             </div>
           </form>

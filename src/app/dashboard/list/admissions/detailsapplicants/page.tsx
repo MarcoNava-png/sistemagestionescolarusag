@@ -13,6 +13,7 @@ import type { AdmisionItem } from "@/features/admisiones/types/AdmisionesData";
 import InscripcionModal from "@/features/inscriptions/components/InscripcionModal";
 import { StudentItem } from "@/features/inscriptions/types";
 import { getGroups, GroupItem } from "@/features/groups";
+import { EstudianteItem } from "@/features/inscriptions/types"; 
 
 /* ---------- Tipos auxiliares ---------- */
 type Stats = { contacts: number; notes: number; tasksOpen: number };
@@ -139,6 +140,7 @@ function DetailPanel({
   const [grupos, setGrupos] = React.useState<GroupItem[]>([]);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [modalInitial, setModalInitial] = React.useState<any | undefined>(undefined);
+  
 
   const fetchStudents = async () => {
     const students = await inscriptionsService.getStudents();
@@ -385,7 +387,20 @@ function DetailPanel({
           </form>
         )}
 
-        <InscripcionModal open={isModalOpen} students={students ?? []} grupos={grupos} onClose={() => setIsModalOpen(false)} initial={modalInitial} />
+        <InscripcionModal
+          open={isModalOpen}
+          estudiantes={
+            (students ?? []).map(s => ({
+              matricula: s.matricula,
+              idPersona: s.idEstudiante,
+              fechaIngreso: new Date().toISOString().slice(0, 10),
+              idPlanActual: 1, // Asigna un id fijo o busca el id real si tienes la lista
+              activo: true
+            }))
+          }
+          onClose={() => setIsModalOpen(false)}
+          initial={modalInitial}
+        />
 
       </div>
     </div>

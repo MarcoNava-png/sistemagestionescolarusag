@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inscripcion, StudentItem } from '@/features/inscriptions/types';
+import { EstudianteItem, Inscripcion, StudentItem } from '@/features/inscriptions/types';
 import AvatarFoto from './AvatarFoto';
 
 export default function InscripcionesTable({
@@ -14,7 +14,7 @@ export default function InscripcionesTable({
   onInscribir,
 }: {
   items: Inscripcion[];
-  students: StudentItem[];
+  estudiantes: EstudianteItem[];
   isSelected: (id: string) => boolean;
   toggleOne: (id: string) => void;
   toggleAllVisible: () => void;
